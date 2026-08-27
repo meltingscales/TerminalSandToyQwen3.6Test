@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut paused = false;
 
-    while terminal.draw(|frame| render(frame, &world)).is_ok() {
+    while terminal.draw(|frame| render(frame, &mut world)).is_ok() {
         if event::poll(std::time::Duration::from_millis(16))? {
             match event::read()? {
                 CEvent::Key(evt) => {
@@ -71,12 +71,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn render(frame: &mut ratatui::Frame, world: &World) {
+fn render(frame: &mut ratatui::Frame, world: &mut World) {
     let size = frame.area();
+
+    // Split terminal into title bar (top, 3 lines) and grid (rest)
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(1)])
         .split(size);
+
+    let grid_area = chunks[1];
+
+    // Grow or shrink the grid to match terminal size.
+    if world.width() != grid_area.width as usize || world.height() != grid_area.height as usize {
+        world.resize(grid_area.width as usize, grid_area.height as usize);
+    }
 
     // Build grid lines with per-cell colored spans.
     let mut lines: Vec<Line> = Vec::with_capacity(world.height());
@@ -101,7 +110,7 @@ fn render(frame: &mut ratatui::Frame, world: &World) {
     frame.render_widget(
         ratatui::text::Text::from(lines)
             .patch_style(Style::default().bg(Color::Rgb(17, 8, 4))),
-        chunks[0],
+        grid_area,
     );
 
     let stats = format!(
@@ -115,13 +124,13 @@ fn render(frame: &mut ratatui::Frame, world: &World) {
 
     frame.render_widget(
         Block::default()
-            .borders(Borders::BOTTOM)
+            .borders(Borders::TOP)
             .title(" Terminal Sand Toy — Qwen 3.6 + Hermes ")
             .style(Style::default().fg(Color::White)),
-        chunks[1],
+        chunks[0],
     );
 
-    // Render stat line over the bottom chunk area.
+    // Render stat line over the top chunk area.
     frame.render_widget(
         Line::styled(stats, Style::default().fg(Color::Yellow)),
         chunks[0],
