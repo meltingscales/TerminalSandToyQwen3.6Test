@@ -1,4 +1,5 @@
 //! src/main.rs — Terminal sand simulation with ratatui
+//! Supports headless mode for LLM inspection via CLI arguments.
 
 mod particles;
 mod simulation;
@@ -14,12 +15,72 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders};
 
+use std::env;
 use std::io;
+use std::time::{Duration, Instant};
 
 use particles::Particle;
 use simulation::World;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
+    let headless_ticks = if args.len() > 2 && args[1] == "--ticks" {
+        args[2].parse::<u64>().ok()
+    } else {
+        None
+    };
+
+    if let Some(ticks) = headless_ticks {
+        run_headless(ticks);
+        return Ok(());
+    }
+
+    run_interactive()?;
+    Ok(())
+}
+
+fn run_headless(ticks: u64) {
+    let mut world = World::new();
+    let start = Instant::now();
+    
+    for _ in 0..ticks {
+        world.tick();
+    }
+
+    println!("--- Simulation State After {} Ticks ---", ticks);
+    println!("Duration: {:?}", start.elapsed());
+    println!("Weather: {}", world.weather_status());
+    println!("Sand: {} | Water: {} | Seeds: {} | Plants: {}", 
+        world.count(Particle::Sand),
+        world.count(Particle::Water),
+        world.count(Particle::Seed),
+        world.count(Particle::Plant)
+    );
+    println!("\n--- Grid Snapshot (Width: {}, Height: {}) ---", world.width(), world.height());
+    
+    for y in 0..world.height() {
+        let mut line = String::new();
+        for x in 0..world.width() {
+            let p = world.get(x, y);
+            if p.is_empty() {
+                line.push(' ');
+            } else {
+                let c = match p {
+                    Particle::Sand => '▓',
+                    Particle::WetSand => '█',
+                    Particle::Water => '≈',
+                    Particle::Seed => '·',
+                    Particle::Plant => 'P',
+                    _ => '?',
+                };
+                line.push(c);
+            }
+        }
+        println!("{}", line);
+    }
+}
+
+fn run_interactive() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -34,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut paused = false;
 
     while terminal.draw(|frame| render(frame, &mut world)).is_ok() {
-        if event::poll(std::time::Duration::from_millis(16))? {
+        if event::poll(Duration::from_millis(16))? {
             match event::read()? {
                 CEvent::Key(evt) => {
                     if evt.kind != KeyEventKind::Press { continue; }
@@ -74,7 +135,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn render(frame: &mut ratatui::Frame, world: &mut World) {
     let size = frame.area();
 
-    // Split terminal into title bar (top, 3 lines) and grid (rest)
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(1)])
@@ -82,12 +142,10 @@ fn render(frame: &mut ratatui::Frame, world: &mut World) {
 
     let grid_area = chunks[1];
 
-    // Grow or shrink the grid to match terminal size.
     if world.width() != grid_area.width as usize || world.height() != grid_area.height as usize {
         world.resize(grid_area.width as usize, grid_area.height as usize);
     }
 
-    // Build grid lines with per-cell colored spans.
     let mut lines: Vec<Line> = Vec::with_capacity(world.height());
 
     for y in 0..world.height() {
@@ -106,7 +164,6 @@ fn render(frame: &mut ratatui::Frame, world: &mut World) {
         lines.push(Line::from(spans));
     }
 
-    // Render the grid as a text block.
     frame.render_widget(
         ratatui::text::Text::from(lines)
             .patch_style(Style::default().bg(Color::Rgb(17, 8, 4))),
@@ -130,7 +187,6 @@ fn render(frame: &mut ratatui::Frame, world: &mut World) {
         chunks[0],
     );
 
-    // Render stat line over the top chunk area.
     frame.render_widget(
         Line::styled(stats, Style::default().fg(Color::Yellow)),
         chunks[0],

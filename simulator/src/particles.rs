@@ -1,11 +1,11 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Modifier, Style};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Particle {
     #[default]
     Empty = 0,
     Sand,
-    Wind,
+    WetSand,       // sand that has absorbed water
     Water,
     Seed,
     Plant,
@@ -14,29 +14,28 @@ pub enum Particle {
 impl Particle {
     pub const fn glyph(self) -> char {
         match self {
-            Self::Empty => ' ',
-            Self::Sand => '\u{2593}',
-            Self::Wind => '~',
-            Self::Water => '\u{2591}',
-            Self::Seed => '\u{00B7}',
-            Self::Plant => '\u{2596}',
+            Self::Empty   => ' ',
+            Self::Sand    => '▓', // full block █
+            Self::WetSand => '█', // medium block ▌
+            Self::Water   => '≈', // wavy line ≈
+            Self::Seed    => '·',   // bullet ·
+            Self::Plant   => 'P',             // leafy plant
         }
     }
 
-    pub const fn fg_color(self) -> Color {
+    pub fn fg_color(&self) -> Color {
         match self {
-            Self::Empty => Color::Rgb(17, 8, 4),
-            Self::Sand => Color::Rgb(230, 194, 41),
-            Self::Wind => Color::Rgb(63, 176, 245),
-            Self::Water => Color::Rgb(79, 170, 245),
-            Self::Seed => Color::Rgb(148, 226, 213),
-            Self::Plant => Color::Rgb(61, 170, 18),
+            Self::Empty   => Color::Rgb(56, 28, 14),
+            Self::Sand    => Color::Rgb(194, 150, 66),
+            Self::WetSand => Color::Rgb(107, 73, 28),
+            Self::Water   => Color::Rgb(56, 120, 165),
+            Self::Seed    => Color::Rgb(255, 140, 0),
+            Self::Plant   => Color::Rgb(34, 139, 34),
         }
     }
 
     pub fn is_empty(self) -> bool { self == Self::Empty }
-
     pub fn is_water(self) -> bool { self == Self::Water }
-
+    pub fn is_wet_soil(self) -> bool { self == Self::WetSand }
     pub fn is_plant(self) -> bool { self == Self::Plant }
 }

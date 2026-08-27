@@ -1,5 +1,8 @@
 # Terminal Sand Toy - Qwen 3.6 35B Test Project
 
+# UPDATE: This seems to get stuck in a loop where the AI agent outputs garbage. I'll probably revisit this later, but for now, local AI coding agents seem to need some work.
+
+
 This is a test to see how Qwen 3.6 35B and Hermes can be used to automatically code. This project has a rust TUI based program that is a sand simulation program with some fun automatic events like plant growth, rain, evaporation, seedfall, etc.
 
 ## Features (Planned)
